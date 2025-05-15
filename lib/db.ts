@@ -10,21 +10,24 @@ const COLLECTIONS = {
   CREDENTIALS: 'credentials',
   BOT_JOBS: 'botJobs',
   SCHEDULED_JOBS: 'scheduledJobs',
+  SUBSCRIPTIONS: 'subscriptions',
 };
 
 // Subscription plan types
 export type SubscriptionPlan = 'basic' | 'pro';
 
 // Define subscription interface for proper typing
-interface UserSubscription {
+export interface UserSubscription {
   plan: SubscriptionPlan;
+  planStartDate: Date;
   planExpiryDate?: Date | null;
   monthlyApplicationsUsed: number;
-  planStartDate: Date;
 }
+
+// Define plan limits
 export const PLAN_LIMITS: Record<SubscriptionPlan, { monthlyApplications: number }> = {
   basic: {
-    monthlyApplications: 50,
+    monthlyApplications: 10,
   },
   pro: {
     monthlyApplications: 500,
@@ -67,9 +70,11 @@ export async function updateUserProfile(userId: string, profileData: any) {
     const result = await db.collection(COLLECTIONS.USER_PROFILES).insertOne({
       userId,
       ...profileData,
-      plan: 'basic', // Default plan for new users
-      monthlyApplicationsUsed: 0,
-      planStartDate: currentTime,
+      subscription: {
+        plan: 'basic',
+        planStartDate: currentTime,
+        monthlyApplicationsUsed: 0,
+      },
       createdAt: currentTime,
       updatedAt: currentTime
     });
@@ -77,27 +82,27 @@ export async function updateUserProfile(userId: string, profileData: any) {
   }
 }
 
-// Subscription plan methods
+// Subscription Methods
 export async function getUserSubscription(userId: string): Promise<UserSubscription> {
   const db = await getDatabase();
   const profile = await db.collection(COLLECTIONS.USER_PROFILES).findOne(
     { userId },
-    { projection: { plan: 1, planExpiryDate: 1, monthlyApplicationsUsed: 1, planStartDate: 1 } }
+    { projection: { subscription: 1 } }
   );
   
-  if (!profile) {
-    // Return default free plan if no profile exists
+  if (!profile || !profile.subscription) {
+    // Return default basic plan if no subscription exists
     return {
       plan: 'basic',
-      monthlyApplicationsUsed: 0,
       planStartDate: new Date(),
+      monthlyApplicationsUsed: 0,
       planExpiryDate: null
     };
   }
   
   // Check if we need to reset the monthly counter
-  if (profile.planStartDate) {
-    const planStartDate = new Date(profile.planStartDate);
+  if (profile.subscription.planStartDate) {
+    const planStartDate = new Date(profile.subscription.planStartDate);
     const currentDate = new Date();
     const monthsSinceStart = (currentDate.getFullYear() - planStartDate.getFullYear()) * 12 + 
                             (currentDate.getMonth() - planStartDate.getMonth());
@@ -108,56 +113,75 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
         { userId },
         {
           $set: {
-            monthlyApplicationsUsed: 0,
-            planStartDate: currentDate
+            "subscription.monthlyApplicationsUsed": 0,
+            "subscription.planStartDate": currentDate
           }
         }
       );
-      profile.monthlyApplicationsUsed = 0;
-      profile.planStartDate = currentDate;
+      profile.subscription.monthlyApplicationsUsed = 0;
+      profile.subscription.planStartDate = currentDate;
     }
   }
   
   return {
-    plan: (profile.plan as SubscriptionPlan) || 'basic',
-    monthlyApplicationsUsed: profile.monthlyApplicationsUsed || 0,
-    planStartDate: profile.planStartDate || new Date(),
-    planExpiryDate: profile.planExpiryDate || null
+    plan: profile.subscription.plan || 'basic',
+    monthlyApplicationsUsed: profile.subscription.monthlyApplicationsUsed || 0,
+    planStartDate: profile.subscription.planStartDate || new Date(),
+    planExpiryDate: profile.subscription.planExpiryDate || null
   };
 }
 
-export async function updateUserSubscription(userId: string, plan: SubscriptionPlan, expiryDate?: Date) {
+export async function upgradeToProPlan(userId: string, expiryDate?: Date): Promise<boolean> {
   const db = await getDatabase();
   const currentTime = new Date();
   
-  const updateData: any = {
-    plan,
-    planStartDate: currentTime,
-    monthlyApplicationsUsed: 0, // Reset counter when changing plans
-    updatedAt: currentTime
-  };
-  
-  if (expiryDate && plan === 'pro') {
-    updateData.planExpiryDate = expiryDate;
-  } else if (plan === 'basic') {
-    // Remove expiry date for basic plan
-    updateData.$unset = { planExpiryDate: "" };
-  }
+  // Default expiry date to 1 year from now if not provided
+  const planExpiryDate = expiryDate || new Date(currentTime.setFullYear(currentTime.getFullYear() + 1));
   
   const result = await db.collection(COLLECTIONS.USER_PROFILES).updateOne(
     { userId },
-    { $set: updateData }
+    {
+      $set: {
+        "subscription.plan": 'pro',
+        "subscription.planStartDate": new Date(),
+        "subscription.planExpiryDate": planExpiryDate,
+        "subscription.monthlyApplicationsUsed": 0, // Reset counter when upgrading
+        updatedAt: new Date()
+      }
+    },
+    { upsert: true }
+  );
+  
+  return result.modifiedCount > 0 || result.upsertedCount > 0;
+}
+
+export async function downgradeToBasicPlan(userId: string): Promise<boolean> {
+  const db = await getDatabase();
+  
+  const result = await db.collection(COLLECTIONS.USER_PROFILES).updateOne(
+    { userId },
+    {
+      $set: {
+        "subscription.plan": 'basic',
+        "subscription.planStartDate": new Date(),
+        "subscription.monthlyApplicationsUsed": 0,
+        updatedAt: new Date()
+      },
+      $unset: {
+        "subscription.planExpiryDate": ""
+      }
+    }
   );
   
   return result.modifiedCount > 0;
 }
 
-export async function incrementApplicationsUsed(userId: string, count: number = 1) {
+export async function incrementApplicationsUsed(userId: string, count: number = 1): Promise<boolean> {
   const db = await getDatabase();
   
   const result = await db.collection(COLLECTIONS.USER_PROFILES).updateOne(
     { userId },
-    { $inc: { monthlyApplicationsUsed: count } }
+    { $inc: { "subscription.monthlyApplicationsUsed": count } }
   );
   
   return result.modifiedCount > 0;
@@ -171,13 +195,30 @@ export async function hasAvailableApplications(userId: string): Promise<boolean>
     const expiryDate = new Date(subscription.planExpiryDate);
     if (expiryDate < new Date()) {
       // Downgrade to basic if pro has expired
-      await updateUserSubscription(userId, 'basic');
+      await downgradeToBasicPlan(userId);
       subscription.plan = 'basic';
     }
   }
   
   const limit = PLAN_LIMITS[subscription.plan].monthlyApplications;
   return subscription.monthlyApplicationsUsed < limit;
+}
+
+export async function getRemainingApplications(userId: string): Promise<number> {
+  const subscription = await getUserSubscription(userId);
+  
+  // Check if pro plan has expired
+  if (subscription.plan === 'pro' && subscription.planExpiryDate) {
+    const expiryDate = new Date(subscription.planExpiryDate);
+    if (expiryDate < new Date()) {
+      // Downgrade to basic if pro has expired
+      await downgradeToBasicPlan(userId);
+      subscription.plan = 'basic';
+    }
+  }
+  
+  const limit = PLAN_LIMITS[subscription.plan].monthlyApplications;
+  return Math.max(0, limit - subscription.monthlyApplicationsUsed);
 }
 
 // LinkedIn Credentials Methods
@@ -230,7 +271,7 @@ export async function createJob(
   searchKeywords: string,
   searchLocation: string,
   maxApplications: number
-): Promise<{ jobId?: string; error?: string }> {
+) {
   const db = await getDatabase();
   const currentTime = new Date();
   
@@ -250,15 +291,11 @@ export async function createJob(
     maxApplications = remainingApplications;
   }
   
-  // Adjust maxApplications if it exceeds the remaining limit
-  if (maxApplications > remainingApplications) {
-    maxApplications = remainingApplications;
-  }
-  
   const jobDocument = {
     userId,
     status: 'pending',
     createdAt: currentTime,
+    updatedAt: currentTime,
     searchKeywords,
     searchLocation,
     maxApplications,
@@ -312,17 +349,16 @@ export async function cancelJob(jobId: string, userId: string) {
     {
       $set: {
         status: 'cancelled',
-        cancelledAt: currentTime
+        cancelledAt: currentTime,
+        updatedAt: currentTime
       },
       $push: {
         logs: {
-          $each: [{
-            time: currentTime,
-            message: 'Job cancelled by user',
-            level: 'info'
-          }]
+          time: currentTime,
+          message: 'Job cancelled by user',
+          level: 'info'
         }
-      } as any
+      }
     }
   );
   
