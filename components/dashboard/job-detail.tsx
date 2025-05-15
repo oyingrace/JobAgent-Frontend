@@ -66,6 +66,12 @@ export function JobDetail({ job }: JobDetailProps) {
     const date = new Date(dateString);
     return date.toLocaleString();
   };
+
+  // Filter logs to only show job processing started and completed successfully messages
+  const filteredLogs = job.logs.filter(log => 
+    log.message.includes("Job processing started") || 
+    log.message.includes("Job completed successfully")
+  );
   
   return (
     <div className="space-y-6">
@@ -207,24 +213,30 @@ export function JobDetail({ job }: JobDetailProps) {
         </Card>
       )}
       
-      <Card title="Logs" className="mb-6">
+      <Card title="Job Status" className="mb-6">
         <div className="space-y-4 max-h-96 overflow-y-auto">
-          {job.logs.map((log, index) => {
-            const logClass = 
-              log.level === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
-              log.level === 'warning' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
-              'bg-gray-50 border-gray-200 text-gray-800';
-              
-            return (
-              <div key={index} className={`p-3 rounded-md border ${logClass}`}>
-                <div className="flex justify-between">
-                  <span className="text-sm font-medium">{log.level.toUpperCase()}</span>
-                  <span className="text-xs text-gray-500">{formatDate(log.time)}</span>
+          {filteredLogs.length > 0 ? (
+            filteredLogs.map((log, index) => {
+              const logClass = 
+                log.level === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
+                log.level === 'warning' ? 'bg-yellow-50 border-yellow-200 text-yellow-800' :
+                'bg-gray-50 border-gray-200 text-gray-800';
+                
+              return (
+                <div key={index} className={`p-3 rounded-md border ${logClass}`}>
+                  <div className="flex justify-between">
+                    <span className="text-sm font-medium">{log.level.toUpperCase()}</span>
+                    <span className="text-xs text-gray-500">{formatDate(log.time)}</span>
+                  </div>
+                  <p className="mt-1 text-sm">{log.message}</p>
                 </div>
-                <p className="mt-1 text-sm">{log.message}</p>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <div className="text-center text-gray-500">
+              No status logs available
+            </div>
+          )}
         </div>
       </Card>
     </div>
