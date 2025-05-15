@@ -7,7 +7,7 @@ import { Button } from '../ui/button';
 interface Job {
   _id: string;
   status: string;
-  createdAt: string;
+  createdAt: Date;
   searchKeywords: string;
   searchLocation: string;
   jobsApplied: number;
@@ -100,9 +100,9 @@ export function JobsList({ jobs, isLoading = false, onCancelJob }: JobsListProps
                   </p>
                 </div>
                 <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                  <p>
+                 {/*  <p>
                     Created: {formatDate(job.createdAt)}
-                  </p>
+                  </p> */}
                   {job.completedAt && (
                     <p className="ml-4">
                       Completed: {formatDate(job.completedAt)}

@@ -23,7 +23,7 @@ export default async function Dashboard() {
     hasLinkedInCredentials(user.id),
     hasResume(user.id),
     getUserJobs(user.id)
-  ]) as [any, boolean, boolean, Job[]];
+  ]) as unknown as [any, boolean, boolean, Job[]];
   
   // Check if all required setup is complete
   const profileComplete = !!profile;
