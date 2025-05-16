@@ -179,7 +179,7 @@ export default function SubscriptionPage() {
             </div>
             
             <div className="mb-6">
-              <p className="text-3xl font-bold mb-2">$10 USD/mo<span className="text-lg font-normal">/month</span></p>
+              <p className="text-3xl font-bold mb-2">$10 USD<span className="text-lg font-normal">/month</span></p>
               <p className="text-gray-600">Pay once for a month of premium access</p>
             </div>
             
