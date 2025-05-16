@@ -2,7 +2,7 @@
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth.config';
 
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -13,4 +13,3 @@ export default async function Layout({ children }: { children: React.ReactNode }
   
   return <DashboardLayout>{children}</DashboardLayout>;
 }
-

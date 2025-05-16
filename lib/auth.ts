@@ -1,7 +1,7 @@
 // lib/auth.ts
 import { getServerSession } from "next-auth/next";
+import { authOptions } from "./auth.config";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 /**
  * Get the current session serverside
