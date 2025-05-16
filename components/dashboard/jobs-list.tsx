@@ -12,7 +12,7 @@ interface Job {
   searchLocation: string;
   jobsApplied: number;
   jobsProcessed: number;
-  completedAt?: string;
+  completedAt?: Date;
 }
 
 interface JobsListProps {
@@ -42,10 +42,21 @@ export function JobsList({ jobs, isLoading = false, onCancelJob }: JobsListProps
     }
   };
   
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString();
-  };
+
+// Update the formatDate function to handle both Date objects and strings
+const formatDate = (dateValue: Date | string | undefined): string => {
+  if (!dateValue) return 'N/A';
+  
+  // Convert to Date object if it's a string
+  const date = dateValue instanceof Date ? dateValue : new Date(dateValue);
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) {
+    return 'Invalid date';
+  }
+  
+  return date.toLocaleString();
+};
   
   if (isLoading) {
     return (

@@ -53,36 +53,12 @@ export default function SubscriptionPage() {
     }
   }, [status, router]);
   
-  const handlePaymentSuccess = async () => {
-    try {
-      const response = await fetch('/api/subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          walletAddress: address, // Send wallet address for verification
-          transactionComplete: true
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to upgrade subscription');
-      }
-      
-      const data = await response.json();
-      setSubscription(data.subscription);
-      setSuccess('Successfully upgraded to Pro plan!');
-      
-      // Fetch updated remaining applications
-      const remainingRes = await fetch('/api/subscription');
-      const remainingData = await remainingRes.json();
-      setRemainingApplications(remainingData.remainingApplications);
-      
-    } catch (err) {
-      console.error('Error upgrading subscription:', err);
-      setError('Failed to upgrade subscription');
-    }
+  const handlePaymentSuccess = () => {
+    // Refresh the page to show updated subscription data
+    window.location.reload();
+    
+    // Or if you prefer not to reload, just set a success message
+    setSuccess('Successfully upgraded to Pro plan!');
   };
   
   const handlePaymentError = (err: Error) => {
@@ -234,14 +210,16 @@ export default function SubscriptionPage() {
               </li>
             </ul>
             
+          
             {subscription?.plan !== 'pro' ? (
-              <PaymentButton
-              />
-            ) : (
-              <div className="text-sm text-gray-600 mt-2">
-                Your plan expires on: {formatDate(subscription.planExpiryDate)}
-              </div>
-            )}
+  <PaymentButton
+    onSuccess={handlePaymentSuccess}
+  />
+) : (
+  <div className="text-sm text-gray-600 mt-2">
+    Your plan expires on: {formatDate(subscription.planExpiryDate)}
+  </div>
+)}
           </div>
         </Card>
       </div>

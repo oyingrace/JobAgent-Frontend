@@ -343,26 +343,29 @@ export async function getJobDetails(jobId: string) {
   return db.collection(COLLECTIONS.BOT_JOBS).findOne({ _id: new ObjectId(jobId) });
 }
 
+// Fixed version
 export async function cancelJob(jobId: string, userId: string) {
   const db = await getDatabase();
   const currentTime = new Date();
   
-  const result = await db.collection(COLLECTIONS.BOT_JOBS).updateOne(
-    { _id: new ObjectId(jobId), userId, status: 'pending' },
-    {
-      $set: {
-        status: 'cancelled',
-        cancelledAt: currentTime,
-        updatedAt: currentTime
-      },
-      $push: {
-        logs: {
-          time: currentTime,
-          message: 'Job cancelled by user',
-          level: 'info'
-        }
+  const updateOperation = {
+    $set: {
+      status: 'cancelled',
+      cancelledAt: currentTime,
+      updatedAt: currentTime
+    },
+    $push: {
+      logs: {
+        time: currentTime,
+        message: 'Job cancelled by user',
+        level: 'info'
       }
     }
+  } as any; // Use type assertion
+  
+  const result = await db.collection(COLLECTIONS.BOT_JOBS).updateOne(
+    { _id: new ObjectId(jobId), userId, status: 'pending' },
+    updateOperation
   );
   
   return result.modifiedCount > 0;
