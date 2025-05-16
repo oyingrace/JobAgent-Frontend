@@ -156,7 +156,7 @@ export default function SubscriptionPage() {
               </li>
             </ul>
             
-            {subscription?.plan !== 'basic' && (
+            {/* {subscription?.plan !== 'basic' && (
               <Button 
                 variant="outline" 
                 className="w-full"
@@ -165,7 +165,7 @@ export default function SubscriptionPage() {
               >
                 {isDowngrading ? 'Processing...' : 'Downgrade to Basic'}
               </Button>
-            )}
+            )} */}
           </div>
         </Card>
         
