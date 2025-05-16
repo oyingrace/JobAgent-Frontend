@@ -58,8 +58,7 @@ export function LinkedInForm({ initialEmail = '', onSubmit }: LinkedInFormProps)
         <div className="space-y-4">
           <div className="mb-4">
             <p className="text-sm text-gray-500">
-              The LinkedIn bot will use these credentials to log into LinkedIn and apply for jobs on your behalf.
-              Your credentials will be stored securely and encrypted in the database.
+            JobAgent will securely sign into LinkedIn with these details to apply for jobs on your behalf.
             </p>
           </div>
           
@@ -81,7 +80,7 @@ export function LinkedInForm({ initialEmail = '', onSubmit }: LinkedInFormProps)
       
       <div className="flex justify-end">
         <Button type="submit" isLoading={isSubmitting}>
-          Save Credentials
+        Connect Account
         </Button>
       </div>
     </form>

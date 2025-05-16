@@ -3,6 +3,7 @@ export interface Job {
   userId: string;
   status: 'pending' | 'processing' | 'running' | 'completed' | 'cancelled';
   createdAt: Date;
+  completedAt: Date;
   searchKeywords: string;
   searchLocation: string;
   maxApplications: number;

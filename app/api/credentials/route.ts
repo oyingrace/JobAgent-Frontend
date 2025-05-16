@@ -13,7 +13,7 @@ export async function GET() {
   } catch (error) {
     console.error("Error checking credentials:", error);
     return NextResponse.json(
-      { error: "Failed to check credentials" },
+      { error: "Failed to check login info" },
       { status: 500 }
     );
   }
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     
     if (!success) {
       return NextResponse.json(
-        { error: "Failed to save credentials" },
+        { error: "Failed to save login info" },
         { status: 500 }
       );
     }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error saving credentials:", error);
     return NextResponse.json(
-      { error: "Failed to save credentials" },
+      { error: "Failed to save login info" },
       { status: 500 }
     );
   }

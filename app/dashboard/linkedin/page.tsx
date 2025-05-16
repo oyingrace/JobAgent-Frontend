@@ -69,13 +69,13 @@ export default function LinkedInPage() {
   
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">LinkedIn Credentials</h1>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Connect your LinkedIn account</h1>
       
       {hasCredentials && (
         <Card className="mb-6">
           <Alert type="success">
-            <p className="font-medium">LinkedIn credentials saved</p>
-            <p className="text-sm">You can update your credentials below if needed.</p>
+            <p className="font-medium">LinkedIn account connected successfully</p>
+            <p className="text-sm">You can update your login info below if needed.</p>
           </Alert>
         </Card>
       )}

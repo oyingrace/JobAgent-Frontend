@@ -1,7 +1,7 @@
 // app/api/jobs/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { createJob, getUserJobs, hasResume, hasLinkedInCredentials, getUserProfile } from "@/lib/db";
+import { createJob, getUserJobs, hasResume, hasLinkedInCredentials, getUserProfile, hasAvailableApplications } from "@/lib/db";
 
 // GET /api/jobs - Get user's job history
 export async function GET() {
@@ -58,22 +58,31 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Check if user has available applications
+    const hasAvailable = await hasAvailableApplications(user.id);
+    if (!hasAvailable) {
+      return NextResponse.json(
+        { error: "Monthly application limit reached" },
+        { status: 400 }
+      );
+    }
+    
     // Create the job
-    const jobId = await createJob(
+    const result = await createJob(
       user.id,
       searchKeywords,
       searchLocation,
       maxApplications || 10
     );
     
-    if (!jobId) {
+    if (result.error) {
       return NextResponse.json(
-        { error: "Failed to create job" },
-        { status: 500 }
+        { error: result.error },
+        { status: 400 }
       );
     }
     
-    return NextResponse.json({ jobId, success: true }, { status: 201 });
+    return NextResponse.json({ jobId: result.jobId, success: true }, { status: 201 });
   } catch (error) {
     console.error("Error creating job:", error);
     return NextResponse.json(

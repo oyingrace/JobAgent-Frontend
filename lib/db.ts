@@ -318,6 +318,9 @@ export async function createJob(
   const result = await db.collection(COLLECTIONS.BOT_JOBS).insertOne(jobDocument);
   
   if (result.insertedId) {
+    // Increment the applications used counter
+    await incrementApplicationsUsed(userId, maxApplications);
+    
     return { jobId: result.insertedId.toString() };
   }
   

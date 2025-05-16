@@ -4,13 +4,13 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from './api/auth/[...nextauth]/route';
-import { SessionProvider } from '@/components/providers/session-provider';
+import ClientProviders from '@/components/providers/client-providers';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'LinkedIn Job Pilot',
-  description: 'Automate your LinkedIn job applications',
+  title: 'Job Agent',
+  description: 'Automate your job applications',
 };
 
 export default async function RootLayout({
@@ -23,9 +23,9 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <SessionProvider session={session}>
+        <ClientProviders session={session}>
           {children}
-        </SessionProvider>
+        </ClientProviders>
       </body>
     </html>
   );

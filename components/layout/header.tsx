@@ -15,7 +15,7 @@ export function Header() {
         <div className="flex justify-between h-16">
           <div className="flex">
             <Link href="/" className="flex-shrink-0 flex items-center">
-              <span className="text-xl font-bold text-primary-600">LinkedIn Job Pilot</span>
+              <span className="text-xl font-bold text-primary-600">JobAgent</span>
             </Link>
           </div>
           <div className="flex items-center">

@@ -1,14 +1,15 @@
-// app/dashboard/subscription/page.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useWalletContext } from '@coinbase/onchainkit/wallet';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { PLAN_LIMITS } from '@/lib/db';
+import PaymentButton from '@/components/wallet/PaymentButton';
+import { PLAN_LIMITS } from '@/lib/constants';
 
 interface Subscription {
   plan: 'basic' | 'pro';
@@ -20,10 +21,11 @@ interface Subscription {
 export default function SubscriptionPage() {
   const { status } = useSession();
   const router = useRouter();
+  const walletContext = useWalletContext();
+  const address = walletContext?.address;
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [remainingApplications, setRemainingApplications] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [isUpgrading, setIsUpgrading] = useState(false);
   const [isDowngrading, setIsDowngrading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -51,18 +53,17 @@ export default function SubscriptionPage() {
     }
   }, [status, router]);
   
-  const handleUpgrade = async () => {
-    setIsUpgrading(true);
-    setError(null);
-    setSuccess(null);
-    
+  const handlePaymentSuccess = async () => {
     try {
       const response = await fetch('/api/subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          walletAddress: address, // Send wallet address for verification
+          transactionComplete: true
+        }),
       });
       
       if (!response.ok) {
@@ -81,9 +82,11 @@ export default function SubscriptionPage() {
     } catch (err) {
       console.error('Error upgrading subscription:', err);
       setError('Failed to upgrade subscription');
-    } finally {
-      setIsUpgrading(false);
     }
+  };
+  
+  const handlePaymentError = (err: Error) => {
+    setError(`Payment error: ${err.message}`);
   };
   
   const handleDowngrade = async () => {
@@ -182,9 +185,9 @@ export default function SubscriptionPage() {
                 variant="outline" 
                 className="w-full"
                 onClick={handleDowngrade}
-                isLoading={isDowngrading}
+                disabled={isDowngrading}
               >
-                Downgrade to Basic
+                {isDowngrading ? 'Processing...' : 'Downgrade to Basic'}
               </Button>
             )}
           </div>
@@ -200,8 +203,8 @@ export default function SubscriptionPage() {
             </div>
             
             <div className="mb-6">
-              <p className="text-3xl font-bold mb-2">$9.99<span className="text-lg font-normal">/month</span></p>
-              <p className="text-gray-600">Billed annually ($119.88/year)</p>
+              <p className="text-3xl font-bold mb-2">0.01 ETH<span className="text-lg font-normal">/month</span></p>
+              <p className="text-gray-600">Pay once for a month of premium access</p>
             </div>
             
             <ul className="space-y-2 mb-6">
@@ -232,13 +235,8 @@ export default function SubscriptionPage() {
             </ul>
             
             {subscription?.plan !== 'pro' ? (
-              <Button 
-                className="w-full"
-                onClick={handleUpgrade}
-                isLoading={isUpgrading}
-              >
-                Upgrade to Pro
-              </Button>
+              <PaymentButton
+              />
             ) : (
               <div className="text-sm text-gray-600 mt-2">
                 Your plan expires on: {formatDate(subscription.planExpiryDate)}
@@ -263,12 +261,12 @@ export default function SubscriptionPage() {
             <div>
               <div className="flex justify-between mb-1">
                 <span className="text-sm text-gray-600">Applications Used This Month</span>
-                <span className="font-medium">{subscription?.monthlyApplicationsUsed} / {PLAN_LIMITS[subscription?.plan || 'basic'].monthlyApplications}</span>
+                <span className="font-medium">{subscription?.monthlyApplicationsUsed || 0} / {PLAN_LIMITS[subscription?.plan || 'basic'].monthlyApplications}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div 
                   className={`h-2.5 rounded-full ${subscription?.plan === 'pro' ? 'bg-primary-600' : 'bg-blue-500'}`}
-                  style={{ width: `${(subscription?.monthlyApplicationsUsed || 0) / PLAN_LIMITS[subscription?.plan || 'basic'].monthlyApplications * 100}%` }}
+                  style={{ width: `${((subscription?.monthlyApplicationsUsed || 0) / (PLAN_LIMITS[subscription?.plan || 'basic'].monthlyApplications) * 100)}%` }}
                 ></div>
               </div>
             </div>
@@ -301,9 +299,11 @@ export default function SubscriptionPage() {
       
       <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-600">
         <p className="mb-2 font-medium">Note:</p>
+        <p>You're currently using Base Sepolia testnet for payments. This is a test network where ETH has no real value.</p>
+        <p>You can get free test ETH from <a href="https://sepoliafaucet.com/" target="_blank" rel="noopener noreferrer" className="text-primary-600 underline">Sepolia Faucet</a>.</p>
         <p>The Basic plan allows you to submit up to {PLAN_LIMITS.basic.monthlyApplications} job applications per month.</p>
         <p>The Pro plan allows you to submit up to {PLAN_LIMITS.pro.monthlyApplications} job applications per month.</p>
-        <p>Your plan resets on the {formatDate(subscription?.planStartDate)} of each month.</p>
+        <p>Your plan resets on the {new Date(subscription?.planStartDate || '').getDate() || 1}st of each month.</p>
       </div>
     </div>
   );

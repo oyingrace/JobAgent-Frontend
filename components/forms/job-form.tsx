@@ -1,5 +1,4 @@
-// components/forms/job-form.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,10 +11,8 @@ import { Select } from '../ui/select';
 const jobSchema = z.object({
   searchKeywords: z.string().min(1, 'Search keywords are required'),
   searchLocation: z.string().min(1, 'Search location is required'),
-  maxApplications: z.string().transform((val) => parseInt(val, 10))
-    .refine((val) => !isNaN(val) && val > 0, {
-      message: 'Max applications must be a positive number',
-    }),
+  maxApplications: z
+    .preprocess((val) => Number(val), z.number().positive('Max applications must be a positive number')),
   datePosted: z.string(),
 });
 
@@ -28,17 +25,39 @@ interface JobFormProps {
   readyMessage?: string;
 }
 
-export function JobForm({ 
-  initialData = {}, 
+export function JobForm({
+  initialData = {},
   onSubmit,
   isReady,
-  readyMessage = "Your profile is incomplete. Please complete your profile, connect LinkedIn, and upload a resume before starting job applications."
+  readyMessage = "Your profile is incomplete. Please complete your profile, connect LinkedIn, and upload a resume before starting job applications.",
 }: JobFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  
-  const { register, handleSubmit, formState: { errors } } = useForm<JobFormData>({
+  const [remainingApplications, setRemainingApplications] = useState<number>(0);
+  const [isLoadingLimits, setIsLoadingLimits] = useState(true);
+
+  // Fetch remaining application limits
+  useEffect(() => {
+    fetch('/api/subscription')
+      .then((res) => res.json())
+      .then((data) => {
+        setRemainingApplications(data.remainingApplications);
+        setIsLoadingLimits(false);
+      })
+      .catch((err) => {
+        console.error('Error fetching subscription limits:', err);
+        setIsLoadingLimits(false);
+      });
+  }, []);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+  } = useForm<JobFormData>({
     resolver: zodResolver(jobSchema),
     defaultValues: {
       searchKeywords: initialData.searchKeywords || '',
@@ -47,17 +66,31 @@ export function JobForm({
       datePosted: initialData.datePosted || 'Past Month',
     },
   });
-  
+
+  const maxApplicationsValue = watch('maxApplications');
+
+  // Enforce maxApplications limit
+  useEffect(() => {
+    if (!isLoadingLimits && maxApplicationsValue > remainingApplications) {
+      setValue('maxApplications', remainingApplications);
+    }
+  }, [maxApplicationsValue, remainingApplications, isLoadingLimits, setValue]);
+
   const handleFormSubmit: SubmitHandler<JobFormData> = async (data) => {
     if (!isReady) {
       setError(readyMessage);
       return;
     }
-    
+
+    if (data.maxApplications > remainingApplications) {
+      setError(`You can only apply to a maximum of ${remainingApplications} jobs based on your current subscription plan.`);
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
-    
+
     try {
       await onSubmit(data);
       setSuccess('Job application started successfully');
@@ -68,12 +101,12 @@ export function JobForm({
       setIsSubmitting(false);
     }
   };
-  
+
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {error && <Alert type="error">{error}</Alert>}
       {success && <Alert type="success">{success}</Alert>}
-      
+
       <Card title="Job Search" className="mb-6">
         <div className="space-y-4">
           <Input
@@ -82,14 +115,14 @@ export function JobForm({
             {...register('searchKeywords')}
             error={errors.searchKeywords?.message}
           />
-          
+
           <Input
             label="Search Location"
             placeholder="e.g. San Francisco, CA"
             {...register('searchLocation')}
             error={errors.searchLocation?.message}
           />
-          
+
           <Select
             label="Date Posted"
             {...register('datePosted')}
@@ -99,24 +132,20 @@ export function JobForm({
               { value: 'Past Month', label: 'Past Month' },
             ]}
           />
-          
+
           <Input
             label="Maximum Applications"
             type="number"
             min="1"
             max="50"
-            {...register('maxApplications')}
+            {...register('maxApplications', { valueAsNumber: true })}
             error={errors.maxApplications?.message}
           />
         </div>
       </Card>
-      
+
       <div className="flex justify-end">
-        <Button 
-          type="submit" 
-          isLoading={isSubmitting}
-          disabled={!isReady}
-        >
+        <Button type="submit" isLoading={isSubmitting} disabled={!isReady}>
           Start Job Search
         </Button>
       </div>
